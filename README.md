@@ -111,7 +111,7 @@ jupyter --version
 
 **추가 패키지 설치:**
 ```bash
-pip install beautifulsoup4 lxml pymysql selenium
+pip install selenium pymysql
 ```
 
 ---
