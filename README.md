@@ -95,22 +95,48 @@ java -version
 2. Community Edition (무료) 다운로드 및 설치
 
 ### 3.2 Python 환경
+📋 설치 방법 (2가지 중 선택)
 
-#### Python 설치 (3.8 이상)
+- 방법 1: Anaconda 설치 
 
-1. [Python 다운로드](https://www.python.org/downloads/) 접속
-2. 최신 버전 다운로드 (예: Python 3.11)
-3. 설치 시 **"Add Python to PATH"** 반드시 체크!
+**Anaconda 하나만 설치하면 Python + Jupyter + 기본 패키지가 모두 설치됩니다.**
 
-**설치 확인:**
-```cmd
+**다운로드**: https://www.anaconda.com/download
+
+**설치 후 확인:**
+```bash
 python --version
-pip --version
+jupyter --version
 ```
 
-#### 필수 Python 패키지 설치
+**추가 패키지 설치:**
+```bash
+pip install beautifulsoup4 lxml pymysql selenium
+```
 
-```cmd
+---
+
+- 방법 2: 개별 설치
+
+#### 1. Python 3.8 이상 설치
+
+**다운로드**: https://www.python.org/downloads/
+
+**설치 시 주의사항:**
+- ✅ "Add Python to PATH" 반드시 체크
+
+**설치 확인:**
+```bash
+python --version
+```
+
+#### 2. Jupyter Notebook 설치
+```bash
+pip install jupyter
+```
+
+#### 3. 필요한 패키지 설치
+```bash
 pip install selenium pandas pymysql openpyxl
 ```
 
