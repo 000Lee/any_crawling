@@ -264,15 +264,15 @@ CREATE TABLE new_documents (
 
 ---
 
-## 5. 1단계: 문서 ID 목록 추출 (Python)
-
+## 5. 1단계: 전자결재 문서 ID 추출
+- 파일 위치 : any_htmlVer_all/새로운크롤링/해당 기간 내에 있는 문서 ID만 txt파일로 가져오는 파이썬코드.ipynb
 ### 5.1 목적
 
 특정 기간의 전자결재 문서 ID들을 텍스트 파일로 추출합니다. 이 ID 목록은 이후 상세 크롤링의 입력 데이터로 사용됩니다.
 
 ### 5.2 코드 수정 (⚠️ 반드시 수정)
 
-파일: `문서ID추출.py`
+파일: `해당 기간 내에 있는 문서 ID만 txt파일로 가져오는 파이썬코드.ipynb`
 
 ```python
 # ═══════════════════════════════════════════════════════════
@@ -295,7 +295,7 @@ OUTPUT_FILE = "doc_ids_2025.txt"  # ← 여기를 수정하세요
 ```cmd
 python 문서ID추출.py
 ```
-
+혹은 해당 스크립트에서 ctrl + enter
 2. **브라우저가 열리면 수동 작업 수행:**
 
    ① 로그인 (ID/PW 입력)
@@ -416,8 +416,7 @@ private static final String[] TARGET_DOCUMENT_IDS = {
 
 ### 6.7 재실행 시
 
-- 이미 처리된 문서는 자동으로 스킵됩니다
-- 실패한 문서만 다시 처리하려면 해당 ID만 배열에 넣고 재실행
+- 프로그램 시작 시 new_documents 테이블에서 이미 저장된 source_id를 조회해서 처리 여부를 판단한 후 이미 처리된 문서는 자동으로 스킵됩니다
 
 ---
 
@@ -462,7 +461,7 @@ private static final String DB_PATH_PREFIX =
 ### 7.3 실행 방법
 
 1. IntelliJ에서 `AnyFiveNewCrawler_attaches.java` 열기
-2. `main` 메서드 실행
+2. `main` 메서드 옆의 ▶ 버튼 클릭 또는 Shift+F10
 
 ### 7.4 결과물
 
@@ -486,7 +485,7 @@ C:/Users/LEEJUHWAN/Downloads/approval_2025_new_attachments/
   {"name": "영수증.pdf", "path": "/PMS_SITE-U7OI43JLDSMO/approval/approval_2025_new_attachments/apr27444/영수증.pdf"}
 ]
 ```
-
+- 프로그램 시작 시 new_documents 테이블에서 attaches가 비어있는 문서만 조회해서 처리 여부를 판단한 후 이미 처리된 문서는 자동으로 스킵됩니다
 ---
 
 ## 8. 4단계: 본문 이미지 크롤링 (Java)
@@ -532,7 +531,7 @@ private static final String ERROR_LOG_FILE =
 ### 8.3 실행 방법
 
 1. IntelliJ에서 `AnyFiveNewCrawler_img.java` 열기
-2. `main` 메서드 실행
+2. `main` 메서드 옆의 ▶ 버튼 클릭 또는 Shift+F10
 
 ### 8.4 특징
 
@@ -566,7 +565,7 @@ C:/Users/LEEJUHWAN/Downloads/approval_2025_new_img/
 
 ### 9.2 사전 준비
 
-**CSS 파일 필요**: 기존에 크롤링한 CSS 파일이 필요합니다.
+**CSS 파일 필요**: 애니파이브 홈페이지에서 다운로드한 CSS 파일이 필요합니다.
 - src/main/resources/css/apr.doc.print.jstl.css
 ### 9.3 코드 수정 (⚠️ 반드시 수정)
 
@@ -603,7 +602,7 @@ private static final String IMG_PATH_PREFIX =
 ### 9.4 실행 방법
 
 1. IntelliJ에서 `AnyFiveNewCrawler_docBody.java` 열기
-2. `main` 메서드 실행
+2. `main` 메서드 옆의 ▶ 버튼 클릭 또는 Shift+F10
 
 ### 9.5 처리 내용
 
