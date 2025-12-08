@@ -233,7 +233,72 @@ USE any_approval;
 ```
 
 ### 4.2 테이블 생성
-깃허브 any_crawling은 증분치를 위해 나중에 만들어졌습니다. 깃허브 any_htmlver이 초안이고 테이블명은 documents입니다. new_documents테이블의 정보들을 cmds를 다 생성하고 나서 documents로 추후에 옮겨서 저장하였습니다.
+- 깃허브 any_crawling은 증분치를 위해 나중에 만들어졌습니다.
+- 깃허브 any_htmlver이 초안이고 테이블명은 documents입니다.
+- 깃허브 any_crawling은 new_documents 테이블에 정보를 저장합니다.
+- new_documents 테이블에 정보를 다 저장 하고 cmds를 생성한 뒤에 documents로 추후에 옮겨서 저장하였습니다.
+- 이와 관련해서 깃허브 any_htmlver에서        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.example</groupId>
+    <artifactId>anyfive-crawler</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Selenium WebDriver -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>4.15.0</version>
+        </dependency>
+
+        <!-- MariaDB JDBC Driver -->
+        <dependency>
+            <groupId>org.mariadb.jdbc</groupId>
+            <artifactId>mariadb-java-client</artifactId>
+            <version>3.2.0</version>
+        </dependency>
+
+        <!-- Jsoup (HTML 파싱) -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.16.2</version>
+        </dependency>
+    </dependencies>
+</project>
+```
+
+---
+
+## 4. 데이터베이스 설정
+
+### 4.1 데이터베이스 생성
+
+DBeaver 또는 명령줄에서 실행:
+
+```sql
+-- 데이터베이스 생성
+CREATE DATABASE any_approval CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 데이터베이스 선택
+USE any_approval;
+```
+
+### 4.2 테이블 생성
+- 깃허브 any_crawling은 증분치를 위해 나중에 만들어졌습니다.
+- 깃허브 any_htmlver이 초안이고 테이블명은 documents입니다.
+- 깃허브 any_crawling은 new_documents 테이블에 정보를 저장합니다.
+- new_documents 테이블에 정보를 다 저장 하고 cmds를 생성한 뒤에 documents로 추후에 옮겨서 저장하였습니다.
+- 이와 관련해서 깃허브 any_htmlver에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요
 ```sql
 CREATE TABLE new_documents (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -264,58 +329,7 @@ CREATE TABLE new_documents (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 ```
--- 누락건 옮기기
-INSERT INTO documents (
-    source_id,
-    doc_num,
-    doc_type,
-    title,
-    doc_status,
-    created_at,
-    drafter_name,
-    drafter_position,
-    drafter_dept,
-    drafter_email,
-    drafter_dept_code,
-    form_name,
-    is_public,
-    end_year,
-    `references`,
-    attaches,
-    referrers,
-    activities,
-    doc_body,
-    created_date
-)
-SELECT 
-    source_id,
-    doc_num,
-    doc_type,
-    title,
-    doc_status,
-    created_at,
-    drafter_name,
-    drafter_position,
-    drafter_dept,
-    drafter_email,
-    drafter_dept_code,
-    form_name,
-    is_public,
-    end_year,
-    `references`,
-    attaches,
-    referrers,
-    activities,
-    doc_body,
-    created_date
-FROM new_documents
-WHERE source_id IN (
-    '2002390',
-    '2008214',
-    '2008497'
--- 이런식으로 문서ID를 넣습니다.
-);
-```
+
 ---
 
 ## 5. 1단계: 전자결재 문서 ID 추출
@@ -729,7 +743,7 @@ python 6(NewUser_insert).py
 
 | 구분 | 현직자 (CSV에 있음) | 퇴사자 (CSV에 없음) |
 |------|---------------------|---------------------|
-| 기안자 | CSV 정보로 업데이트 | email='master', 나머지 공란 |
+| 기안자 | CSV 정보로 업데이트 | email='master', 이름만 남기고 공란 |
 | activities | CSV 정보로 업데이트 | 이름만 남기고 공란 |
 | referrers | empNo, deptCode 추가 | 이름만 남기고 공란 |
 
@@ -781,7 +795,48 @@ python 12_8(DB에서 cmds로 변환).py
 **doc_sourceId_숫자 붙이기**
 - 패턴: `("sourceId":\s*")(\d+)(")`
 - 치환: `\1doc_\2_숫자\3`
+- 여기서 숫자 = 이관 시도 횟수 "deptName": "",
+  "positionName": "",
+  "deptCode": ""
+}
+```
 
+**업데이트 후:**
+```json
+{
+  "name": "홍길동",
+  "emailId": "hong",
+  "deptName": "경영지원팀",
+  "positionName": "책임",
+  "deptCode": "DEPT001"
+}
+```
+
+---
+
+## 11. 7단계: CMDS 형식 변환 (Python)
+
+### 11.1 목적
+
+DB에 저장된 데이터를 최종 마이그레이션 형식(CMDS)으로 변환합니다.
+
+### 11.2 사전 준비
+
+- 깃허브에서 any_htmlver/새로운크롤링/12_8(DB에서 cmds로 변환).ipynb 다운로드
+
+### 11.2 실행
+
+```cmd
+python 12_8(DB에서 cmds로 변환).py
+```
+혹은 ctrl + enter
+
+## 🛠️ 수동으로 수정해야 할 것들
+### Notepad++ 정규식 작업
+**doc_sourceId_숫자 붙이기**
+- 패턴: `("sourceId":\s*")(\d+)(")`
+- 치환: `\1doc_\2_숫자\3`
+- 여기서 숫자 = 이관 시도 횟수
 ---
 
 ## 12. 문제 해결 (Troubleshooting)
@@ -846,4 +901,4 @@ Communications link failure
 2. 파일 저장 시 UTF-8 인코딩 사용
 3. CSV 파일: UTF-8 with BOM 또는 `utf-8-sig` 인코딩
 
-
+### 깃허브 any_htmlver에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요 
