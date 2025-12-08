@@ -25,7 +25,9 @@
 
 ### 1.1 이 가이드의 목적
 
-애니파이브 전자결재 시스템(office.anyfive.com)에 저장된 결재 문서들을 추출하여 새로운 시스템으로 이전하는 cmds를 생성하는 작업을 단계별로 안내합니다.
+- 애니파이브 전자결재 시스템(office.anyfive.com)에 저장된 결재 문서들을 추출하여 새로운 시스템으로 이전하는 cmds를 생성하는 작업을 단계별로 안내합니다.
+- any_crawling_earlyVersion은 첨부파일,이미지,정보수집을 한번에 하며 상세를 하나하나 눌러서 들어갔다가 나오기 때문에 타임아웃 오류에 취약하고 복구 로직 또한 안정적이지 않습니다. (사용자가 재시작점을 수동으로 매번 설정해야합니다)
+- any_crawling의 경우 문서 ID만 따로 크롤링해서 사전수집을 한것을 바탕으로 호출해서 정보를 수집합니다. 이미지, 첨부파일 모두 따로 다운받고 DB에 저장되어 있지 않은 데이터만 자동으로 수집하므로 보다 안정적으로 재시작이 가능합니다.
 
 ### 1.2 추출 대상 데이터
 
@@ -231,7 +233,7 @@ USE any_approval;
 ```
 
 ### 4.2 테이블 생성
-
+깃허브 any_crawling은 증분치를 위해 나중에 만들어졌습니다. 깃허브 any_htmlver이 초안이고 테이블명은 documents입니다. new_documents테이블의 정보들을 cmds를 다 생성하고 나서 documents로 추후에 옮겨서 저장하였습니다.
 ```sql
 CREATE TABLE new_documents (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -261,13 +263,65 @@ CREATE TABLE new_documents (
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
-
+```
+-- 누락건 옮기기
+INSERT INTO documents (
+    source_id,
+    doc_num,
+    doc_type,
+    title,
+    doc_status,
+    created_at,
+    drafter_name,
+    drafter_position,
+    drafter_dept,
+    drafter_email,
+    drafter_dept_code,
+    form_name,
+    is_public,
+    end_year,
+    `references`,
+    attaches,
+    referrers,
+    activities,
+    doc_body,
+    created_date
+)
+SELECT 
+    source_id,
+    doc_num,
+    doc_type,
+    title,
+    doc_status,
+    created_at,
+    drafter_name,
+    drafter_position,
+    drafter_dept,
+    drafter_email,
+    drafter_dept_code,
+    form_name,
+    is_public,
+    end_year,
+    `references`,
+    attaches,
+    referrers,
+    activities,
+    doc_body,
+    created_date
+FROM new_documents
+WHERE source_id IN (
+    '2002390',
+    '2008214',
+    '2008497'
+-- 이런식으로 문서ID를 넣습니다.
+);
+```
 ---
 
 ## 5. 1단계: 전자결재 문서 ID 추출
 - 파일 위치 : any_htmlVer_all/새로운크롤링/해당 기간 내에 있는 문서 ID만 txt파일로 가져오는 파이썬코드.ipynb
+  
 ### 5.1 목적
-
 특정 기간의 전자결재 문서 ID들을 텍스트 파일로 추출합니다. 이 ID 목록은 이후 상세 크롤링의 입력 데이터로 사용됩니다.
 
 ### 5.2 코드 수정 (⚠️ 반드시 수정)
