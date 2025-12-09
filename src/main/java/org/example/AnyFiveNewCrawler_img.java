@@ -39,10 +39,10 @@ public class AnyFiveNewCrawler_img {
     private static final String DB_PASSWORD = "1234";
 
     // 사용자 입력값
-    private static final int END_YEAR = 2015;
+    private static final int END_YEAR = 2025;
 
     // 파일 저장 경로
-    private static final String DOWNLOAD_BASE_PATH = "C:/Users/LEEJUHWAN/Downloads/approval_2015_new_img";
+    private static final String DOWNLOAD_BASE_PATH = "C:/Users/LEEJUHWAN/Downloads/approval_2025_new_img";
 
     // 처리 완료 목록 파일
     private static final String PROCESSED_IDS_FILE = DOWNLOAD_BASE_PATH + "/processed_ids.txt";

@@ -5,8 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="23a0a80d-075f-4aaa-af79-0dc4d84ae98b" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/AnyFiveNewCrawler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/AnyFiveNewCrawler.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/AnyFiveNewCrawler_attaches.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/AnyFiveNewCrawler_attaches.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/AnyFiveNewCrawler_docBody.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/AnyFiveNewCrawler_docBody.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/org/example/AnyFiveNewCrawler_img.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/org/example/AnyFiveNewCrawler_img.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -90,7 +93,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1763694547181</updated>
-      <workItem from="1763694548157" duration="69901000" />
+      <workItem from="1763694548157" duration="88232000" />
     </task>
     <servers />
   </component>

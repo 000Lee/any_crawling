@@ -41,13 +41,13 @@ public class AnyFiveNewCrawler_docBody {
     private static final String DB_PASSWORD = "1234";
 
     // 사용자 입력값
-    private static final int END_YEAR = 2015;
+    private static final int END_YEAR = 2025;
 
     // CSS 파일 경로
     private static final String CSS_FILE_PATH = "C:/Users/LEEJUHWAN/Downloads/2021-01-01~2025-10-31/html/resource/css/apr.doc.print.jstl.css";
 
     // 이미지 경로 프리픽스
-    private static final String IMG_PATH_PREFIX = "/PMS_SITE-U7OI43JLDSMO/approval/approval_2015_new_img";
+    private static final String IMG_PATH_PREFIX = "/PMS_SITE-U7OI43JLDSMO/approval/approval_2025_new_img";
 
     //------------------------------------여기까지 수정하세요
 

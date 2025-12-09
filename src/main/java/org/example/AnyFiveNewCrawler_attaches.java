@@ -41,20 +41,20 @@ public class AnyFiveNewCrawler_attaches {
     private static final String DB_PASSWORD = "1234";
 
     // 사용자 입력값
-    private static final int END_YEAR = 2015;
+    private static final int END_YEAR = 2025;
 
     // 파일 저장 경로
-    private static final String DOWNLOAD_BASE_PATH = "C:/Users/LEEJUHWAN/Downloads/approval_2015_new_attachments";
+    private static final String DOWNLOAD_BASE_PATH = "C:/Users/LEEJUHWAN/Downloads/approval_2025_new_attachments";
 
     // DB path 프리픽스
-    private static final String DB_PATH_PREFIX = "/PMS_SITE-U7OI43JLDSMO/approval/approval_2015_new_attachments";
+    private static final String DB_PATH_PREFIX = "/PMS_SITE-U7OI43JLDSMO/approval/approval_2025_new_attachments";
 
     //------------------------------------여기까지 수정하세요
 
     // attaches가 비어있는 문서 ID 조회 SQL
     private static final String SELECT_EMPTY_ATTACHES_SQL =
             "SELECT source_id FROM new_documents WHERE end_year = ? " +
-                    "AND (attaches IS NULL OR attaches = '' OR attaches = '[]')";
+                    "AND (attaches IS NULL OR attaches = '')";
 
     // attaches 업데이트 SQL
     private static final String UPDATE_ATTACHES_SQL =
