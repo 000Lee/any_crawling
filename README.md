@@ -298,7 +298,7 @@ USE any_approval;
 - 깃허브 any_htmlver이 초안이고 테이블명은 documents입니다.
 - 깃허브 any_crawling은 new_documents 테이블에 정보를 저장합니다.
 - new_documents 테이블에 정보를 다 저장 하고 cmds를 생성한 뒤에 documents로 추후에 옮겨서 저장하였습니다.
-- 이와 관련해서 깃허브 any_htmlver에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요
+- 이와 관련해서 깃허브 [any_htmlver](https://github.com/000Lee/any_htmlver.git)에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요
 ```sql
 CREATE TABLE new_documents (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
