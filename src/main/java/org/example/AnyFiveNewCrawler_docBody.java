@@ -31,7 +31,7 @@ public class AnyFiveNewCrawler_docBody {
 
     private static final String USER_ID = "master";
     private static final String USER_PW = "five4190any#";
-    private static final String TARGET_URL = "http://office.anyfive.com";
+    private static final String TARGET_URL = "https://auth.onnet21.com/?re=anyfive.onnet21.com/sso/login";
     private static final String IFRAME_NAME = "content_frame";
 
     //------------------------------------여기부터 수정하세요
@@ -41,24 +41,24 @@ public class AnyFiveNewCrawler_docBody {
     private static final String DB_PASSWORD = "1234";
 
     // 사용자 입력값
-    private static final int END_YEAR = 2025;
+    private static final int END_YEAR = 2024;
 
     // CSS 파일 경로
     private static final String CSS_FILE_PATH = "C:/Users/LEEJUHWAN/Downloads/2021-01-01~2025-10-31/html/resource/css/apr.doc.print.jstl.css";
 
     // 이미지 경로 프리픽스
-    private static final String IMG_PATH_PREFIX = "/PMS_SITE-U7OI43JLDSMO/approval/approval_2025_new_img";
+    private static final String IMG_PATH_PREFIX = "/PMS_SITE-U7OI43JLDSMO/approval/attach/approval_2024_new_img";
 
     //------------------------------------여기까지 수정하세요
 
     // doc_body가 비어있는 문서 ID 조회 SQL
     private static final String SELECT_EMPTY_DOCBODY_SQL =
-            "SELECT source_id FROM new_documents WHERE end_year = ? " +
+            "SELECT source_id FROM new_documents_2024 WHERE end_year = ? " +
                     "AND (doc_body IS NULL OR doc_body = '')";
 
     // doc_body 업데이트 SQL
     private static final String UPDATE_DOCBODY_SQL =
-            "UPDATE new_documents SET doc_body = ? WHERE source_id = ? AND end_year = ?";
+            "UPDATE new_documents_2024 SET doc_body = ? WHERE source_id = ? AND end_year = ?";
 
     // CSS 내용 (프로그램 시작 시 로드)
     private static String CSS_CONTENT = "";

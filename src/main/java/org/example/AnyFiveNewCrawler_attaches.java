@@ -31,34 +31,35 @@ public class AnyFiveNewCrawler_attaches {
 
     private static final String USER_ID = "master";
     private static final String USER_PW = "five4190any#";
-    private static final String TARGET_URL = "http://office.anyfive.com";
+    private static final String TARGET_URL = "https://auth.onnet21.com/?re=anyfive.onnet21.com/sso/login";
+    private static final String FILE_BASE_URL = "https://anyfive.onnet21.com";  // 파일 다운로드용 도메인
     private static final String IFRAME_NAME = "content_frame";
 
     //------------------------------------여기부터 수정하세요
-    // MariaDB 연결 정보
+    // ★★★ MariaDB 연결 정보 ★★★
     private static final String DB_URL = "jdbc:mariadb://localhost:3306/any_approval";
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = "1234";
 
     // 사용자 입력값
-    private static final int END_YEAR = 2025;
+    private static final int END_YEAR = 2024;
 
     // 파일 저장 경로
-    private static final String DOWNLOAD_BASE_PATH = "C:/Users/LEEJUHWAN/Downloads/approval_2025_new_attachments";
+    private static final String DOWNLOAD_BASE_PATH = "C:/Users/LEEJUHWAN/Downloads/approval_2024_new_attachments";
 
     // DB path 프리픽스
-    private static final String DB_PATH_PREFIX = "/PMS_SITE-U7OI43JLDSMO/approval/approval_2025_new_attachments";
+    private static final String DB_PATH_PREFIX = "/PMS_SITE-U7OI43JLDSMO/approval/approval_2024_new_attachments";
 
     //------------------------------------여기까지 수정하세요
 
     // attaches가 비어있는 문서 ID 조회 SQL
     private static final String SELECT_EMPTY_ATTACHES_SQL =
-            "SELECT source_id FROM new_documents WHERE end_year = ? " +
+            "SELECT source_id FROM new_documents_2024 WHERE end_year = ? " +
                     "AND (attaches IS NULL OR attaches = '')";
 
     // attaches 업데이트 SQL
     private static final String UPDATE_ATTACHES_SQL =
-            "UPDATE new_documents SET attaches = ? WHERE source_id = ? AND end_year = ?";
+            "UPDATE new_documents_2024 SET attaches = ? WHERE source_id = ? AND end_year = ?";
 
     public static void main(String[] args) {
         System.setProperty(WEB_DRIVER_ID, WEB_DRIVER_PATH);
@@ -176,6 +177,28 @@ public class AnyFiveNewCrawler_attaches {
                     js.executeScript(clickFunctionCall);
                     Thread.sleep(2500);
 
+
+                    // ★★★ 문서 ID 검증 로직 ★★★
+                    final String expectedDocId = docId;
+                    boolean idMatched = wait.until(driver1 -> {
+                        try {
+                            WebElement seqInput = driver1.findElement(
+                                    By.cssSelector("input[name='appr_doc_seq']"));
+                            String loadedId = seqInput.getAttribute("value");
+                            return expectedDocId.equals(loadedId);
+                        } catch (Exception e) {
+                            return false;
+                        }
+                    });
+
+                    if (!idMatched) {
+                        System.err.println("    > 문서 ID 불일치, 스킵: " + docId);
+                        errorCount++;
+                        driver.navigate().back();
+                        Thread.sleep(1500);
+                        continue;
+                    }
+                    System.out.println("    > 문서 ID 검증 성공: " + docId);
                     // 페이지 로드 대기
                     wait.until(ExpectedConditions.presenceOfElementLocated(By.id("apprLineTable")));
                     Thread.sleep(1000);
@@ -311,7 +334,7 @@ public class AnyFiveNewCrawler_attaches {
                     if (href != null && !href.isEmpty()) {
                         // 상대경로면 절대경로로 변환
                         if (href.startsWith("/")) {
-                            info.downloadUrl = TARGET_URL + href;
+                            info.downloadUrl = FILE_BASE_URL + href;
                         } else {
                             info.downloadUrl = href;
                         }

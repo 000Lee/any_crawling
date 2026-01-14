@@ -29,7 +29,7 @@ public class AnyFiveNewCrawler_img {
 
     private static final String USER_ID = "master";
     private static final String USER_PW = "five4190any#";
-    private static final String TARGET_URL = "http://office.anyfive.com";
+    private static final String TARGET_URL = "https://auth.onnet21.com/?re=anyfive.onnet21.com/sso/login";
     private static final String IFRAME_NAME = "content_frame";
 
     //------------------------------------여기부터 수정하세요
@@ -39,10 +39,10 @@ public class AnyFiveNewCrawler_img {
     private static final String DB_PASSWORD = "1234";
 
     // 사용자 입력값
-    private static final int END_YEAR = 2025;
+    private static final int END_YEAR = 2024;
 
     // 파일 저장 경로
-    private static final String DOWNLOAD_BASE_PATH = "C:/Users/LEEJUHWAN/Downloads/approval_2025_new_img";
+    private static final String DOWNLOAD_BASE_PATH = "C:/Users/LEEJUHWAN/Downloads/approval_2024_new_img";
 
     // 처리 완료 목록 파일
     private static final String PROCESSED_IDS_FILE = DOWNLOAD_BASE_PATH + "/processed_ids.txt";
@@ -50,11 +50,14 @@ public class AnyFiveNewCrawler_img {
     // 에러 로그 파일
     private static final String ERROR_LOG_FILE = DOWNLOAD_BASE_PATH + "/download_errors.log";
 
+    // 최대 재시도 횟수
+    private static final int MAX_RETRY = 3;
+
     //------------------------------------여기까지 수정하세요
 
     // 전체 source_id 조회 SQL
     private static final String SELECT_ALL_SOURCE_IDS_SQL =
-            "SELECT source_id FROM new_documents WHERE end_year = ? ORDER BY source_id";
+            "SELECT source_id FROM new_documents_2024 WHERE end_year = ? ORDER BY source_id";
 
     public static void main(String[] args) {
         System.setProperty(WEB_DRIVER_ID, WEB_DRIVER_PATH);
@@ -163,113 +166,153 @@ public class AnyFiveNewCrawler_img {
             int totalDownloaded = 0;
             int noImageCount = 0;
             int errorCount = 0;
+            List<String> failedIds = new ArrayList<>();
 
             for (int idx = 0; idx < targetIds.size(); idx++) {
                 String docId = targetIds.get(idx);
                 System.out.println("\n  > [" + (idx + 1) + "/" + targetIds.size() + "] 문서 ID: " + docId + " 처리 중...");
 
                 boolean success = false;
+                int retryCount = 0;
 
-                try {
-                    // Iframe 전환 확인
-                    driver.switchTo().defaultContent();
-                    wait.until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(IFRAME_NAME));
-                    Thread.sleep(1000);
-
-                    // 상세 페이지 로드
-                    String clickFunctionCall = String.format("managementDocList.clickGridRow(%s);", docId);
-                    js.executeScript(clickFunctionCall);
-                    Thread.sleep(2500);
-
-                    // 페이지 로드 대기
-                    wait.until(ExpectedConditions.presenceOfElementLocated(By.id("apprLineTable")));
-                    Thread.sleep(1000);
-
-                    // 이미지 태그 추출
-                    List<WebElement> imgElements = driver.findElements(
-                            By.cssSelector("img[src*='/image/namoimage']"));
-                    System.out.println("    > 이미지 수: " + imgElements.size());
-
-                    if (imgElements.isEmpty()) {
-                        // 이미지 없음 - 폴더 생성 안 함, processed_ids에만 추가
-                        noImageCount++;
-                        success = true;
-                        System.out.println("    > 이미지 없음, 스킵");
-                    } else {
-                        // 폴더 생성
-                        String docFolderPath = DOWNLOAD_BASE_PATH + "/apr" + docId;
-                        File docFolder = new File(docFolderPath);
-                        if (!docFolder.exists()) {
-                            docFolder.mkdirs();
-                        }
-
-                        // 이미지 다운로드
-                        int downloadedCount = 0;
-                        boolean hasError = false;
-
-                        for (int i = 0; i < imgElements.size(); i++) {
-                            WebElement img = imgElements.get(i);
-                            String src = img.getAttribute("src");
-
-                            // 상대경로 → 절대경로
-                            String imgUrl;
-                            if (src.startsWith("/")) {
-                                imgUrl = TARGET_URL + src;
-                            } else if (src.startsWith("http")) {
-                                imgUrl = src;
-                            } else {
-                                imgUrl = TARGET_URL + "/" + src;
-                            }
-
-                            String savePath = docFolderPath + "/" + i + ".jpg";
-
-                            boolean downloaded = downloadFile(imgUrl, savePath, cookieString);
-                            if (downloaded) {
-                                downloadedCount++;
-                                totalDownloaded++;
-                            } else {
-                                hasError = true;
-                                logError(docId, i, imgUrl, "다운로드 실패");
-                            }
-                        }
-
-                        System.out.println("    > 다운로드 완료: " + downloadedCount + "/" + imgElements.size());
-
-                        // 모든 이미지가 성공해야 처리 완료로 표시
-                        if (!hasError) {
-                            success = true;
-                        } else {
-                            errorCount++;
-                            // 부분 실패 시 폴더 삭제 (재처리 시 깔끔하게)
-                            deleteFolder(docFolder);
-                            System.out.println("    > 부분 실패로 폴더 삭제, 재처리 대상");
-                        }
-                    }
-
-                    // 처리 완료 시 processed_ids에 추가
-                    if (success) {
-                        appendProcessedId(docId);
-                        totalProcessed++;
-                    }
-
-                    // 목록으로 복귀
-                    driver.navigate().back();
-                    Thread.sleep(1500);
-
-                } catch (Exception e) {
-                    errorCount++;
-                    System.err.println("    > 오류 발생: " + e.getMessage());
-                    logError(docId, -1, "", "페이지 처리 오류: " + e.getMessage());
-
-                    // 복구 시도
+                while (!success && retryCount < MAX_RETRY) {
                     try {
-                        driver.navigate().back();
-                        Thread.sleep(2000);
+                        if (retryCount > 0) {
+                            System.out.println("    > 재시도 " + retryCount + "/" + MAX_RETRY);
+                        }
+
+                        // Iframe 전환 확인
                         driver.switchTo().defaultContent();
                         wait.until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(IFRAME_NAME));
-                    } catch (Exception recoveryEx) {
-                        System.err.println("    > 복구 실패: " + recoveryEx.getMessage());
+                        Thread.sleep(1000);
+
+                        // 상세 페이지 로드
+                        String clickFunctionCall = String.format("managementDocList.clickGridRow(%s);", docId);
+                        js.executeScript(clickFunctionCall);
+                        Thread.sleep(2500);
+
+                        // ★★★ 문서 ID 검증 로직 추가 ★★★
+                        final String expectedDocId = docId;
+                        boolean idMatched = wait.until(driver1 -> {
+                            try {
+                                WebElement seqInput = driver1.findElement(
+                                        By.cssSelector("input[name='appr_doc_seq']"));
+                                String loadedId = seqInput.getAttribute("value");
+                                return expectedDocId.equals(loadedId);
+                            } catch (Exception e) {
+                                return false;
+                            }
+                        });
+
+                        if (!idMatched) {
+                            System.err.println("    > 문서 ID 불일치, 재시도...");
+                            retryCount++;
+                            driver.navigate().back();
+                            Thread.sleep(2000);
+                            continue;
+                        }
+
+                        System.out.println("    > 문서 ID 검증 성공: " + docId);
+
+                        // 페이지 로드 대기
+                        wait.until(ExpectedConditions.presenceOfElementLocated(By.id("apprLineTable")));
+                        Thread.sleep(1000);
+
+                        // 이미지 태그 추출
+                        List<WebElement> imgElements = driver.findElements(
+                                By.cssSelector("img[src*='/image/namoimage']"));
+                        System.out.println("    > 이미지 수: " + imgElements.size());
+
+                        if (imgElements.isEmpty()) {
+                            // 이미지 없음 - 폴더 생성 안 함, processed_ids에만 추가
+                            noImageCount++;
+                            success = true;
+                            System.out.println("    > 이미지 없음, 스킵");
+                        } else {
+                            // 폴더 생성
+                            String docFolderPath = DOWNLOAD_BASE_PATH + "/apr" + docId;
+                            File docFolder = new File(docFolderPath);
+                            if (!docFolder.exists()) {
+                                docFolder.mkdirs();
+                            }
+
+                            // 이미지 다운로드
+                            int downloadedCount = 0;
+                            boolean hasError = false;
+
+                            for (int i = 0; i < imgElements.size(); i++) {
+                                WebElement img = imgElements.get(i);
+                                String src = img.getAttribute("src");
+
+                                // 상대경로 → 절대경로
+                                String imgUrl;
+                                if (src.startsWith("/")) {
+                                    imgUrl = "https://anyfive.onnet21.com" + src;
+                                } else if (src.startsWith("http")) {
+                                    imgUrl = src;
+                                } else {
+                                    imgUrl = "https://anyfive.onnet21.com/" + src;
+                                }
+
+                                String savePath = docFolderPath + "/" + i + ".jpg";
+
+                                boolean downloaded = downloadFile(imgUrl, savePath, cookieString);
+                                if (downloaded) {
+                                    downloadedCount++;
+                                    totalDownloaded++;
+                                } else {
+                                    hasError = true;
+                                    logError(docId, i, imgUrl, "다운로드 실패");
+                                }
+                            }
+
+                            System.out.println("    > 다운로드 완료: " + downloadedCount + "/" + imgElements.size());
+
+                            // 모든 이미지가 성공해야 처리 완료로 표시
+                            if (!hasError) {
+                                success = true;
+                            } else {
+                                retryCount++;
+                                // 부분 실패 시 폴더 삭제 (재처리 시 깔끔하게)
+                                deleteFolder(docFolder);
+                                System.out.println("    > 부분 실패로 폴더 삭제, 재시도...");
+                                driver.navigate().back();
+                                Thread.sleep(2000);
+                                continue;
+                            }
+                        }
+
+                        // 처리 완료 시 processed_ids에 추가
+                        if (success) {
+                            appendProcessedId(docId);
+                            totalProcessed++;
+                        }
+
+                        // 목록으로 복귀
+                        driver.navigate().back();
+                        Thread.sleep(1500);
+
+                    } catch (Exception e) {
+                        retryCount++;
+                        System.err.println("    > 오류 발생 (시도 " + retryCount + "): " + e.getMessage());
+                        logError(docId, -1, "", "페이지 처리 오류: " + e.getMessage());
+
+                        // 복구 시도
+                        try {
+                            driver.navigate().back();
+                            Thread.sleep(2000);
+                            driver.switchTo().defaultContent();
+                            wait.until(ExpectedConditions.frameToBeAvailableAndSwitchToIt(IFRAME_NAME));
+                        } catch (Exception recoveryEx) {
+                            System.err.println("    > 복구 실패: " + recoveryEx.getMessage());
+                        }
                     }
+                }
+
+                if (!success) {
+                    errorCount++;
+                    failedIds.add(docId);
+                    System.err.println("    > 최종 실패: 문서 ID " + docId);
                 }
 
                 // 10건마다 진행 상황 출력
@@ -286,6 +329,11 @@ public class AnyFiveNewCrawler_img {
             System.out.println("  > 이미지 없는 문서: " + noImageCount);
             System.out.println("  > 이미지 다운로드 수: " + totalDownloaded);
             System.out.println("  > 실패: " + errorCount);
+
+            if (!failedIds.isEmpty()) {
+                System.out.println("\n  > 실패한 문서 ID 목록:");
+                System.out.println("    " + String.join(", ", failedIds));
+            }
 
         } catch (Exception e) {
             System.err.println("크롤링 중 치명적 오류 발생: " + e.getMessage());
