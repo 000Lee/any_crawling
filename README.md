@@ -28,6 +28,7 @@
 11. [7단계: CMDS 형식 변환](#11-7단계-cmds-형식-변환-python)
 12. [문제 해결 (Troubleshooting)](#12-문제-해결-troubleshooting)
 13. [참고 사항](#13-참고-사항)
+14. [⭐전자결재 최신 버전⭐](#14-전자결재-최신-버전)
 
 ---
 
@@ -1398,6 +1399,322 @@ documentIds.addAll(Arrays.asList(
 ---
 ## F. 문서 기본정보 크롤링 - 별도 테이블 버전 (AnyFiveNewCrawler9670)
 기존 크롤러와 유사하나, 상세 접속 이후 문서 ID 검증로직이 추가되었습니다.
+
+---
+---
+
+## 14. ⭐전자결재 최신 버전⭐
+
+> 이 섹션은 전자결재 최신 버전 가이드입니다. (2026-01-14)
+> 
+> - **자바 코드 설명**: 현재 페이지 (any_crawling)
+> - **파이썬 코드 설명**: [any_approval_plus](https://github.com/000Lee/any_approval_plus.git) - `전자결재 추가 수정/전자결재 증증분치 (2025이전)/` 경로
+
+---
+
+### 14.1 설정 변경 사항
+
+#### 로그인 URL 변경
+```java
+// 기존
+private static final String BASE_URL = "http://office.anyfive.com";
+
+// 변경
+private static final String BASE_URL = "https://auth.onnet21.com/?re=anyfive.onnet21.com/sso/login";
+```
+
+#### DB 테이블명
+- 테이블명은 용도에 맞게 자유롭게 지정 (예: `new_documents_2024`, `new_documents_2023` 등)
+- 모든 Java 크롤러와 Python 스크립트에서 동일한 테이블명 사용 필수
+
+---
+
+### 14.2 전체 실행 순서 (16단계)
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                    전자결재 증분 크롤링 워크플로우 (2025년 이전)                    │
+└─────────────────────────────────────────────────────────────────────────────────┘
+
+[1단계] 🐍 문서 ID 추출 ─────────────────────────> doc_ids.txt
+         └── 파이썬코드_증증분치.ipynb
+                                                      │
+[2단계] 🐍 누락 문서 찾기 ───────────────────────> 누락 ID 목록
+         └── find_missing_docs_multi_table.ipynb
+                                                      │
+                                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              Java 크롤링 단계                                    │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ [3단계] ☕ AnyFiveNewCrawler9670.java ────────> 문서 기본정보 크롤링              │
+│         └── 2번 결과를 TARGET_DOCUMENT_IDS에 입력                                │
+│         └── 참조자 괄호 제거 SQL 실행 (후처리)                                    │
+│                                                                                 │
+│ [4단계] ☕ AnyFiveNewCrawler_attaches.java ───> 첨부파일 크롤링                   │
+│         └── 다운로드 검증 필수                                                   │
+│                                                                                 │
+│ [5단계] ☕ AnyFiveNewCrawler_img.java ────────> 본문 이미지 크롤링                │
+│         └── 다운로드 검증 필수                                                   │
+│                                                                                 │
+│ [6단계] ☕ AnyFiveNewCrawler_docBody.java ────> 문서 본문 HTML 크롤링             │
+│                                                                                 │
+│ [7단계] ☕ AnyFiveCommentCrawler.java ────────> 결재 댓글 크롤링                  │
+│         └── 2번 결과를 TARGET_DOCUMENT_IDS에 입력                                │
+│                                                                                 │
+│ [8단계] ☕ AnyFiveActiviesCrawler_plus.java ──> 결재이력 크롤링                   │
+│         └── 2번 결과를 TARGET_DOCUMENT_IDS에 입력                                │
+│         └── ⚠️ 반려 처리 주의 (수동 작업 필요)                                   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                                      │
+                                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                           Python 후처리 단계                                     │
+├─────────────────────────────────────────────────────────────────────────────────┤
+│ [9단계]  🐍 add_year_column.ipynb ───────────> 연도 컬럼 추가                    │
+│ [10단계] 🐍 DB에_조직도_다시_반영하기_수정.ipynb > 조직도 반영                    │
+│ [11단계] 🐍 update_db_referrers.ipynb ───────> 참조자 업데이트                   │
+│ [12단계] 🐍 DB_조직도_반영_검증_v2.ipynb ────> 조직도 검증                        │
+│ [13단계] 🐍 fix_activities_order_db3.ipynb ──> 결재순서 정렬 (0건이면 스킵)       │
+└─────────────────────────────────────────────────────────────────────────────────┘
+                                                      │
+                                                      ▼
+[14단계] 🗄️ 스타일태그 검증 SQL ─────────────────> 문서당 1개인지 확인
+
+[15단계] 🐍 export_documents_v3.ipynb ───────────> 최종 내보내기
+
+[16단계] 🐍 comments_to_cmds 증분치.ipynb ───────> 코멘트 변환
+```
+
+---
+
+### 14.3 단계별 상세 설명
+
+#### 📌 [1~2단계] 문서 ID 추출 및 누락 문서 찾기 (Python)
+
+> 파이썬 코드 상세 설명은 [any_approval_plus](https://github.com/000Lee/any_approval_plus.git) 참조
+
+| 단계 | 파일명 | 설명 |
+|:---:|--------|------|
+| 1 | `파이썬코드_증증분치.ipynb` | 해당 기간 내 문서 ID를 txt 파일로 추출 |
+| 2 | `find_missing_docs_multi_table.ipynb` | 기존 테이블과 비교하여 누락된 문서 ID 추출 |
+
+---
+
+#### 📌 [3단계] 문서 기본정보 크롤링 - AnyFiveNewCrawler9670.java
+
+**기능:**
+- 문서 상세 페이지 접근 후 기본 정보 크롤링
+- **문서 ID 검증 로직 포함**: 호출한 문서 ID와 실제 로드된 문서 ID 일치 여부 확인
+- DB에 문서 메타데이터 저장
+
+**사용 방법:**
+```java
+// 1. 2단계 결과(누락 문서 ID)를 TARGET_DOCUMENT_IDS에 입력
+private static final String[] TARGET_DOCUMENT_IDS = {
+    "27444","28456","29777","30123"
+    // ↑ find_missing_docs_multi_table.ipynb 결과를 붙여넣기
+};
+
+// 2. 테이블명 수정
+private static final String TABLE_NAME = "new_documents_2024";  // ← 원하는 테이블명
+
+// 3. 로그인 URL 수정
+private static final String BASE_URL = "https://auth.onnet21.com/?re=anyfive.onnet21.com/sso/login";
+```
+
+**후처리 - 참조자 괄호 제거:**
+
+크롤링 완료 후 참조자 컬럼에 `이름(아이디)` 형식이 있는 경우 아래 SQL 실행:
+```sql
+-- 참조자 컬럼에서 괄호와 내용 제거 (이름만 남김)
+UPDATE new_documents_2024
+SET referrers = REGEXP_REPLACE(referrers, '\\([^)]+\\)', '')
+WHERE referrers LIKE '%(%';
+```
+
+---
+
+#### 📌 [4단계] 첨부파일 크롤링 - AnyFiveNewCrawler_attaches.java
+
+**기능:**
+- DB에 저장된 문서들의 첨부파일 다운로드
+- attaches 컬럼에 파일 경로 JSON 업데이트
+
+**검증 방법:**
+
+크롤링 완료 후 반드시 검증:
+```sql
+-- DB에 첨부파일이 있는 문서 개수 및 총 첨부파일 개수 확인
+SELECT 
+    COUNT(DISTINCT source_id) as doc_count,
+    SUM(JSON_LENGTH(attaches)) as total_attaches
+FROM new_documents_2024
+WHERE attaches IS NOT NULL AND attaches != '[]';
+```
+
+실제 다운로드 폴더에서 확인:
+- 폴더 개수 = `doc_count`와 일치해야 함
+- 총 파일 개수 = `total_attaches`와 일치해야 함
+
+---
+
+#### 📌 [5단계] 본문 이미지 크롤링 - AnyFiveNewCrawler_img.java
+
+**기능:**
+- 문서 본문에 포함된 이미지(`<img>` 태그) 다운로드
+- `processed_ids.txt`로 재시작 지원
+
+**검증 방법:**
+```sql
+-- DB에 이미지가 있는 문서 개수 확인 (doc_body 내 img 태그 기준)
+SELECT COUNT(*) as img_doc_count
+FROM new_documents_2024
+WHERE doc_body LIKE '%<img%';
+```
+
+실제 다운로드 폴더에서:
+- 폴더 개수 = 이미지가 있는 문서 수와 일치해야 함
+
+---
+
+#### 📌 [6단계] 문서 본문 크롤링 - AnyFiveNewCrawler_docBody.java
+
+**기능:**
+- 인쇄 페이지 HTML 추출
+- 불필요 섹션 제거 (첨부파일 영역, 결재의견, 결재댓글, 조회자)
+- 이미지 경로 변환
+- CSS 인라인 삽입 및 HTML 압축
+- DB `doc_body` 컬럼에 저장
+
+---
+
+#### 📌 [7단계] 결재 댓글 크롤링 - AnyFiveCommentCrawler.java
+
+**기능:**
+- 전자결재 문서의 결재 댓글 추출
+- 재시작 지원 (`processed_ids.txt`)
+
+**사용 방법:**
+```java
+// 2단계 결과를 TARGET_DOCUMENT_IDS에 입력
+private static final String[] TARGET_DOCUMENT_IDS = {
+    "27444","28456","29777"
+    // ↑ find_missing_docs_multi_table.ipynb 결과
+};
+```
+
+---
+
+#### 📌 [8단계] 결재이력 크롤링 - AnyFiveActiviesCrawler_plus.java
+
+**기능:**
+- 결재 라인 정보 (순서, 상태, 결재일시, 결재자) 크롤링
+- activities 컬럼에 JSON 형태로 저장
+
+**사용 방법:**
+```java
+// 2단계 결과를 TARGET_DOCUMENT_IDS에 입력
+private static final String[] TARGET_DOCUMENT_IDS = {
+    "27444","28456","29777"
+};
+```
+
+**⚠️ 반려 처리 주의사항:**
+
+`AnyFiveNewCrawler9670.java`에는 **반려 상태 매핑이 없습니다.**
+
+반려된 문서의 경우:
+- `activities` 컬럼의 `type`, `actionLogType`에 한글 **"반려"**로 저장됨
+- 건수가 적으므로 **수동 처리** 필요
+
+**반려 수동 처리 방법:**
+```sql
+-- 1. 반려 문서 확인
+SELECT source_id, activities 
+FROM new_documents_2024
+WHERE activities LIKE '%반려%';
+
+-- 2. 수동으로 수정
+-- type: "반려" → "APPROVAL"
+-- actionLogType: "반려" → "APPROVAL"  
+-- actionComment 맨 앞에 "[반려] " 추가
+```
+
+---
+
+#### 📌 [9~13단계] Python 후처리
+
+> 파이썬 코드 상세 설명은 [any_approval_plus](https://github.com/000Lee/any_approval_plus.git) 참조
+
+| 단계 | 파일명 | 설명 | 비고 |
+|:---:|--------|------|------|
+| 9 | `add_year_column.ipynb` | 연도 컬럼 추가 | |
+| 10 | `DB에_조직도_다시_반영하기_수정.ipynb` | 조직도(인사정보) DB 반영 | |
+| 11 | `update_db_referrers.ipynb` | 참조자 정보 업데이트 | |
+| 12 | `DB_조직도_반영_검증_v2.ipynb` | 조직도 반영 검증 | |
+| 13 | `fix_activities_order_db3.ipynb` | 결재순서 정렬 | **0건이면 스킵** |
+
+---
+
+#### 📌 [14단계] 스타일태그 검증 (SQL)
+
+문서 하나당 `<style>` 태그가 1개인지 확인:
+```sql
+SELECT
+    (LENGTH(doc_body) - LENGTH(REPLACE(LOWER(doc_body), '<style', ''))) / LENGTH('<style') AS style_tag_count,
+    COUNT(*) AS doc_count
+FROM new_documents_2024
+WHERE doc_body IS NOT NULL
+GROUP BY style_tag_count
+ORDER BY style_tag_count DESC;
+```
+
+**기대 결과:**
+| style_tag_count | doc_count |
+|-----------------|-----------|
+| 1 | (전체 문서 수) |
+
+- `style_tag_count`가 1이 아닌 문서가 있으면 확인 필요
+
+---
+
+#### 📌 [15~16단계] 최종 내보내기 (Python)
+
+> 파이썬 코드 상세 설명은 [any_approval_plus](https://github.com/000Lee/any_approval_plus.git) 참조
+
+| 단계 | 파일명 | 설명 |
+|:---:|--------|------|
+| 15 | `export_documents_v3.ipynb` | 최종 문서 내보내기 |
+| 16 | `comments_to_cmds 증분치.ipynb` | 코멘트를 cmds 형식으로 변환 |
+
+---
+
+### 14.4 Java 크롤러 설정 요약
+
+| 크롤러 | TARGET_DOCUMENT_IDS | 테이블명 | URL 변경 |
+|--------|:-------------------:|:--------:|:--------:|
+| AnyFiveNewCrawler9670 | ✅ 2단계 결과 | ✅ | ✅ |
+| AnyFiveNewCrawler_attaches | ❌ (DB 기준) | ✅ | ✅ |
+| AnyFiveNewCrawler_img | ❌ (DB 기준) | ✅ | ✅ |
+| AnyFiveNewCrawler_docBody | ❌ (DB 기준) | ✅ | ✅ |
+| AnyFiveCommentCrawler | ✅ 2단계 결과 | ✅ | ✅ |
+| AnyFiveActiviesCrawler_plus | ✅ 2단계 결과 | ✅ | ✅ |
+
+---
+
+### 14.5 체크리스트
+
+#### 크롤링 전
+- [ ] 로그인 URL 변경 완료
+- [ ] 테이블명 통일 확인
+- [ ] ChromeDriver 버전 확인
+- [ ] DB 연결 정보 확인
+
+#### 크롤링 후
+- [ ] 첨부파일 개수 검증 (DB vs 폴더)
+- [ ] 이미지 개수 검증 (DB vs 폴더)
+- [ ] 반려 문서 확인 및 수동 처리
+- [ ] 스타일태그 검증 완료
+- [ ] 결재순서 정렬 확인
 
 ---
 ---
