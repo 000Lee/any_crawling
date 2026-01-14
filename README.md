@@ -2,8 +2,17 @@
 
 > 이 문서는 office.anyfive.com 전자결재 시스템에서 데이터를 추출하여 새로운 시스템으로 마이그레이션하기 위한 cmds를 만드는 전체 과정입니다.
 > 파일 이름에 AnyFiveOOJnlOOCrawler_OO 형식으로 되어있는것은 업무관리 데이터 크롤러로 이에 관련된 설명은 모두 [any_jnl_crawling](https://github.com/000Lee/any_jnl_crawling.git)에 있습니다.
----
+--
+## 결재선 크롤링
+- 설명과 자바코드는 현재 📋 애니파이브 전자결재 크롤링 가이드
 
+> 이 문서는 office.anyfive.com 전자결재 시스템에서 데이터를 추출하여 새로운 시스템으로 마이그레이션하기 위한 cmds를 만드는 전체 과정입니다.
+> 파일 이름에 AnyFiveOOJnlOOCrawler_OO 형식으로 되어있는것은 업무관리 데이터 크롤러로 이에 관련된 설명은 모두 [any_jnl_crawling](https://github.com/000Lee/any_jnl_crawling.git)에 있습니다.
+--
+## 결재선 크롤링
+- 설명과 자바코드는 현재 페이지을 참고
+- 파이썬코드는 [any_approval_plus](https://github.com/000Lee/any_approval_plus.git)을 참고
+--
 ## 📑 목차
 
 1. [개요](#1-개요)
@@ -299,7 +308,7 @@ USE any_approval;
 - 깃허브 any_htmlver이 초안이고 테이블명은 documents입니다.
 - 깃허브 any_crawling은 new_documents 테이블에 정보를 저장합니다.
 - new_documents 테이블에 정보를 다 저장 하고 cmds를 생성한 뒤에 documents로 추후에 옮겨서 저장하였습니다.
-- 이와 관련해서 깃허브 [any_htmlver](https://github.com/000Lee/any_htmlver.git)에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요
+~~- 이와 관련해서 깃허브 [any_htmlver](https://github.com/000Lee/any_htmlver.git)에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요~~
 ```sql
 CREATE TABLE new_documents (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -915,6 +924,7 @@ Communications link failure
 | 결재 댓글 크롤러 | `AnyFiveCommentCrawler.java` | 결재 문서의 댓글 수집 |
 | 누락 첨부파일 크롤러 | `AnyFivePlusCrawler_attaches.java` | 누락된 첨부파일 보완 다운로드 |
 | 참조문서 크롤러 | `AnyFiveReferenceDocCrawler.java` | 다운로드파일에 참조문서 정보 없어서 따로 크롤링 |
+| 메타데이터 크롤러 수정판 | `AnyFiveNewCrawler9670.java` | 상세접속 후 호출한 문서와 호출된 문서가 같은지 확인|
 ---
 
 ## A. 결재 라인 데이터 크롤링 (AnyFiveActiviesCrawler)
@@ -1386,5 +1396,9 @@ documentIds.addAll(Arrays.asList(
 | 15377405 | 15370025 |
 | 17030834 | 17025001 |
 ---
+## F. 문서 기본정보 크롤링 - 별도 테이블 버전 (AnyFiveNewCrawler9670)
+기존 크롤러와 유사하나, 상세 접속 이후 문서 ID 검증로직이 추가되었습니다.
 
-### 깃허브 any_htmlver에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요 
+---
+---
+
