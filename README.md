@@ -914,7 +914,7 @@ Communications link failure
 | 결재 라인 크롤러 (ID목록 직접 입력) | `AnyFiveActiviesCrawler_plus.java` | 특정 문서만 선택적 크롤링 |
 | 결재 댓글 크롤러 | `AnyFiveCommentCrawler.java` | 결재 문서의 댓글 수집 |
 | 누락 첨부파일 크롤러 | `AnyFivePlusCrawler_attaches.java` | 누락된 첨부파일 보완 다운로드 |
-
+| 참조문서 크롤러 | `AnyFiveReferenceDocCrawler.java` | 다운로드파일에 참조문서 정보 없어서 따로 크롤링 |
 ---
 
 ## A. 결재 라인 데이터 크롤링 (AnyFiveActiviesCrawler)
@@ -1298,6 +1298,93 @@ C:/Users/LEEJUHWAN/Downloads/approval_plus_attachments/
 ]
 ```
 
+---
+---
+
+## E. 참조문서 크롤링 (AnyFiveReferenceDocCrawler)
+
+### E.1 목적
+
+전자결재 문서에 연결된 **참조문서 ID**를 추출하여 별도 테이블에 저장합니다.
+
+| 추출 항목 | 설명 |
+|-----------|------|
+| source_document_id | 원본 문서 ID |
+| reference_document_id | 참조문서 ID |
+
+### E.2 사전 준비
+
+**테이블 생성:**
+```sql
+CREATE TABLE reference_documents (
+    id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    source_document_id VARCHAR(255) NOT NULL COMMENT '원본 문서 ID',
+    reference_document_id VARCHAR(255) NOT NULL COMMENT '참조문서 ID',
+    
+    INDEX idx_source_document_id (source_document_id),
+    INDEX idx_reference_document_id (reference_document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+### E.3 코드 수정 (⚠️ 반드시 수정)
+
+파일: `AnyFiveReferenceDocCrawler.java`
+```java
+// ========== 크롬 드라이버 경로 ==========
+private static final String WEB_DRIVER_PATH = 
+    "C:/Users/LEEJUHWAN/Downloads/chromedriver-win64/chromedriver-win64/chromedriver.exe";
+    // ↑ 본인의 ChromeDriver 경로로 수정
+
+// ========== DB 연결 정보 ==========
+private static final String DB_URL = "jdbc:mariadb://localhost:3306/any_approval";
+private static final String DB_USER = "root";
+private static final String DB_PASSWORD = "1234";  // ← DB 비밀번호 수정
+
+// ========== 크롤링 대상 문서 ID 목록 - 여기에 직접 입력 ==========
+List<String> documentIds = new ArrayList<>();
+documentIds.addAll(Arrays.asList(
+    "15377405", "15391835", "15484981"
+    // ↑ 참조문서를 추출할 문서 ID를 쉼표로 구분하여 입력
+));
+```
+
+### E.4 실행 방법
+
+1. `documentIds` 리스트에 크롤링할 문서 ID 입력
+2. IntelliJ에서 `AnyFiveReferenceDocCrawler.java` 실행
+
+### E.5 실행 과정
+```
+총 250개의 문서 ID 로드 완료.
+2단계: 로그인 및 메뉴 클릭을 통한 게시판 진입 시도.
+  > 로그인 버튼 클릭 완료.
+  > '전자결재' 아이콘 클릭 완료.
+  > '결재문서관리' 메뉴 클릭 완료.
+
+3단계: DB 연결 성공 (참조문서 삽입 준비).
+
+  > [1/250] 문서 ID: 15377405 처리 중...
+  > JS 함수 호출 성공: managementDocList.clickGridRow(15377405);
+    - 참조문서 ID 발견: 15370001
+    - 참조문서 ID 발견: 15370025
+  > 배치 실행 및 커밋 완료. (2 참조문서 저장)
+  > 목록 페이지로 복귀.
+
+4단계: 모든 DB 작업이 완료되었습니다.
+  > 총 250개 문서 처리 완료
+  > 참조문서가 있는 문서: 180개
+  > 참조문서가 없는 문서: 70개
+  > 총 320개 참조문서 관계 DB에 저장 완료.
+```
+
+### E.6 결과물
+
+**DB 테이블 예시:**
+| source_document_id | reference_document_id |
+|--------------------|----------------------|
+| 15377405 | 15370001 |
+| 15377405 | 15370025 |
+| 17030834 | 17025001 |
 ---
 
 ### 깃허브 any_htmlver에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요 
