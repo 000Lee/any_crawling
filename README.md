@@ -902,4 +902,402 @@ Communications link failure
 2. 파일 저장 시 UTF-8 인코딩 사용
 3. CSV 파일: UTF-8 with BOM 또는 `utf-8-sig` 인코딩
 
+---
+
+## 📌 추가 크롤러 가이드
+
+### 추가 크롤러 목록
+
+| 크롤러 | 파일명 | 목적 |
+|--------|--------|------|
+| 결재 라인 크롤러 | `AnyFiveActiviesCrawler.java` | 결재 순서/상태/결재자 정보 수집 |
+| 결재 라인 크롤러 (ID목록 직접 입력) | `AnyFiveActiviesCrawler_plus.java` | 특정 문서만 선택적 크롤링 |
+| 결재 댓글 크롤러 | `AnyFiveCommentCrawler.java` | 결재 문서의 댓글 수집 |
+| 누락 첨부파일 크롤러 | `AnyFivePlusCrawler_attaches.java` | 누락된 첨부파일 보완 다운로드 |
+
+---
+
+## A. 결재 라인 데이터 크롤링 (AnyFiveActiviesCrawler)
+
+### A.1 목적
+
+전자결재 문서의 **결재 라인 정보**를 추출하여 별도 테이블에 저장합니다.
+
+| 추출 항목 | 설명 |
+|-----------|------|
+| sequence | 결재 순서 |
+| status | 결재 상태 (승인, 반려 등) |
+| approval_date | 결재 일시 |
+| department | 결재자 부서 |
+| approver | 결재자 이름 |
+
+### A.2 사전 준비
+
+**테이블 생성:**
+```sql
+CREATE TABLE approval_data_2025 (
+    record_id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    document_id VARCHAR(255) NOT NULL COMMENT '문서 ID',
+    post_title VARCHAR(512) COMMENT '문서 제목',
+    sequence INT(11) COMMENT '결재 순서',
+    status VARCHAR(50) COMMENT '결재 상태',
+    approval_date VARCHAR(50) COMMENT '결재 일시',
+    department VARCHAR(100) COMMENT '결재자 부서',
+    approver VARCHAR(100) COMMENT '결재자 이름',
+    
+    INDEX idx_document_id (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+**document_sources 테이블 필요:**
+- 크롤링 대상 문서 ID는 `document_sources` 테이블의 `source_id` 컬럼에서 로드됩니다.
+- `end_year = 2025` 조건으로 필터링됩니다.
+
+### A.3 코드 수정 (⚠️ 반드시 수정)
+
+파일: `AnyFiveActiviesCrawler.java`
+
+```java
+// ========== 크롬 드라이버 경로 ==========
+private static final String WEB_DRIVER_PATH = 
+    "C:/Users/LEEJUHWAN/Downloads/chromedriver-win64/chromedriver-win64/chromedriver.exe";
+    // ↑ 본인의 ChromeDriver 경로로 수정
+
+// ========== DB 연결 정보 ==========
+private static final String DB_URL = "jdbc:mariadb://localhost:3306/any_approval";
+private static final String DB_USER = "root";
+private static final String DB_PASSWORD = "1234";  // ← DB 비밀번호 수정
+```
+
+### A.4 실행 방법
+
+1. IntelliJ에서 `AnyFiveActiviesCrawler.java` 열기
+2. `main` 메서드 옆의 ▶ 버튼 클릭 또는 Shift+F10
+
+### A.5 실행 과정
+
+```
+0단계: DB에서 크롤링할 문서 ID 목록 로드 시작.
+  > DB 로드 완료. 총 500개의 문서 ID 확인.
+
+2단계: 로그인 및 메뉴 진입.
+  > 로그인 버튼 클릭 완료.
+  > '전자결재' 아이콘 클릭 완료.
+  > '결재문서관리' 메뉴 클릭 완료.
+
+3단계: DB 재연결 성공 (건별 삽입 준비).
+  > 문서 ID: 27444 처리 중...
+    > 결재 라인 테이블 로드 확인. (제목: 2025년 1월 출장비 정산)
+    > 배치 실행 및 커밋 완료. (5 rows inserted for 27444)
+    > 목록 페이지로 복귀.
+
+4단계: 모든 DB 작업이 완료되었습니다.
+  > 총 2500개 행 DB에 삽입 완료.
+```
+
+### A.6 재실행 시
+
+- 이미 `approval_data_2025` 테이블에 존재하는 `document_id`는 **자동으로 스킵**됩니다.
+- 중단 후 재실행해도 중복 삽입 없이 이어서 진행됩니다.
+
+### A.7 결과물
+
+**DB 테이블 예시:**
+| document_id | post_title | sequence | status | approval_date | department | approver |
+|-------------|------------|----------|--------|---------------|------------|----------|
+| 27444 | 출장비 정산 | 1 | 기안 | 2025-01-15 09:30 | 개발팀 | 홍길동 |
+| 27444 | 출장비 정산 | 2 | 승인 | 2025-01-15 10:15 | 개발팀 | 김철수 |
+| 27444 | 출장비 정산 | 3 | 승인 | 2025-01-15 14:00 | 경영지원팀 | 이영희 |
+
+---
+
+## B. 결재 라인 데이터 크롤링 - 문서ID 직접 입력 버전 (AnyFiveActiviesCrawler_plus)
+
+### B.1 목적
+
+**특정 문서 ID만 선택적으로** 결재 라인 데이터를 크롤링합니다. DB에서 자동 로드하지 않고 코드에 직접 ID를 지정합니다.
+
+### B.2 사용 시점
+
+- 특정 기간의 문서만 추가로 크롤링할 때
+- 누락된 문서를 보완할 때
+- 테스트 목적으로 소수의 문서만 처리할 때
+
+### B.3 사전 준비
+
+**테이블 생성:**
+```sql
+CREATE TABLE approval_data_plus (
+    record_id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    document_id VARCHAR(255) NOT NULL COMMENT '문서 ID',
+    post_title VARCHAR(512) COMMENT '문서 제목',
+    sequence INT(11) COMMENT '결재 순서',
+    status VARCHAR(50) COMMENT '결재 상태',
+    approval_date VARCHAR(50) COMMENT '결재 일시',
+    department VARCHAR(100) COMMENT '결재자 부서',
+    approver VARCHAR(100) COMMENT '결재자 이름',
+    
+    INDEX idx_document_id (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
+
+### B.4 코드 수정 (⚠️ 반드시 수정)
+
+파일: `AnyFiveActiviesCrawler_plus.java`
+
+```java
+// ========== 크롬 드라이버 경로 ==========
+private static final String WEB_DRIVER_PATH = 
+    "C:/Users/LEEJUHWAN/Downloads/chromedriver-win64/chromedriver-win64/chromedriver.exe";
+
+// ========== DB 연결 정보 ==========
+private static final String DB_URL = "jdbc:mariadb://localhost:3306/any_approval";
+private static final String DB_USER = "root";
+private static final String DB_PASSWORD = "1234";
+
+// ========== 크롤링 대상 문서 ID 목록 - 여기에 직접 입력 ==========
+private static final String[] TARGET_DOCUMENT_IDS = {
+    "26836938","26824807","26824251","26821433","26820164"
+    // ↑ 크롤링할 문서 ID를 쉼표로 구분하여 입력
+};
+```
+
+### B.5 실행 방법
+
+1. `TARGET_DOCUMENT_IDS` 배열에 크롤링할 문서 ID 입력
+2. IntelliJ에서 `AnyFiveActiviesCrawler_plus.java` 실행
+
+### B.6 재실행 시
+
+- `approval_data_plus` 테이블에서 이미 처리된 `document_id`를 조회하여 자동 스킵
+- 중단 후 재실행 시 처리되지 않은 문서만 진행
+
+---
+
+## C. 결재 댓글 크롤링 (AnyFiveCommentCrawler)
+
+### C.1 목적
+
+전자결재 문서에 작성된 **결재 댓글**을 추출합니다.
+
+| 추출 항목 | 설명 |
+|-----------|------|
+| sourceId | 댓글 고유 ID (순번_문서ID_01 형식) |
+| sourceDocumentId | 원본 문서 ID |
+| writer | 댓글 작성자 |
+| createdAt | 작성 일시 (Unix timestamp) |
+| message | 댓글 내용 |
+
+### C.2 코드 수정 (⚠️ 반드시 수정)
+
+파일: `AnyFiveCommentCrawler.java`
+
+```java
+// ========== 크롬 드라이버 경로 ==========
+private static final String WEB_DRIVER_PATH = 
+    "C:/Users/LEEJUHWAN/Downloads/chromedriver-win64/chromedriver-win64/chromedriver.exe";
+
+// ========== DB 연결 정보 ==========
+private static final String DB_URL = "jdbc:mariadb://localhost:3306/any_approval";
+private static final String DB_USER = "root";
+private static final String DB_PASSWORD = "1234";
+
+// ========== 파일 저장 경로 ==========
+private static final String PROGRESS_DIR = "C:/Users/LEEJUHWAN/Downloads/comment_crawl";
+// ↑ 진행 상황 및 에러 로그가 저장될 폴더
+
+// ========== 크롤링 대상 문서 ID 목록 ==========
+private static final String[] TARGET_DOCUMENT_IDS = {
+    "2006627","2006626","2006625"
+    // ↑ 크롤링할 문서 ID를 입력
+};
+```
+
+### C.3 실행 방법
+
+1. `TARGET_DOCUMENT_IDS` 배열에 크롤링할 문서 ID 입력
+2. IntelliJ에서 `AnyFiveCommentCrawler.java` 실행
+
+### C.4 재시작 지원
+
+크롤링 중단 시 재시작을 지원합니다:
+
+| 파일 | 용도 |
+|------|------|
+| `processed_ids.txt` | 처리 완료된 문서 ID 목록 |
+| `error_log.txt` | 오류 발생 문서 및 에러 메시지 |
+
+- 재실행 시 `processed_ids.txt`에 있는 문서는 자동 스킵
+- 완전히 처음부터 시작하려면 `processed_ids.txt` 파일 삭제
+
+### C.5 결과물
+
+**폴더 구조:**
+```
+C:/Users/LEEJUHWAN/Downloads/comment_crawl/
+├── processed_ids.txt     # 처리 완료 목록
+└── error_log.txt         # 에러 로그
+```
+
+**추출되는 댓글 정보 예시:**
+```
+sourceId: 01_27444_01
+sourceDocumentId: 27444
+writer: 홍길동
+createdAt: 1705290600000
+message: 검토 완료했습니다. 승인합니다.
+```
+
+---
+
+## D. 누락 첨부파일 보완 크롤링 (AnyFivePlusCrawler_attaches)
+
+### D.1 목적
+
+기존 크롤링에서 **누락되거나 실패한 첨부파일**을 보완 다운로드합니다.
+
+### D.2 특징
+
+| 특징 | 설명 |
+|------|------|
+| **All or Nothing** | 모든 첨부파일 다운로드 성공 시에만 DB 업데이트 |
+| **CSV 입력 지원** | 누락 목록을 CSV로 입력 가능 |
+| **다중 로그 관리** | 완료/실패/이름불일치/개수경고 별도 로그 |
+| **재시작 지원** | 완료된 항목 자동 스킵 |
+
+### D.3 코드 수정 (⚠️ 반드시 수정)
+
+파일: `AnyFivePlusCrawler_attaches.java`
+
+```java
+// ========== 크롬 드라이버 경로 ==========
+private static final String WEB_DRIVER_PATH = 
+    "C:/Users/LEEJUHWAN/Downloads/chromedriver-win64/chromedriver-win64/chromedriver.exe";
+
+// ========== DB 연결 정보 ==========
+private static final String DB_URL = "jdbc:mariadb://localhost:3306/any_approval";
+private static final String DB_USER = "root";
+private static final String DB_PASSWORD = "1234";
+
+// ========== 소스 ID 로딩 방식 ==========
+// true: CSV 파일에서 읽기, false: MANUAL_SOURCE_IDS 리스트 사용
+private static final boolean USE_CSV = true;
+private static final String CSV_PATH = "C:/Users/LEEJUHWAN/empty_path_documents.csv";
+
+// 수동 지정 시 사용할 source_id 리스트 (USE_CSV = false일 때 사용)
+private static final List<String> MANUAL_SOURCE_IDS = Arrays.asList(
+    "2002144",
+    "2002200",
+    "2002203"
+);
+
+// ========== 파일 저장 경로 ==========
+// 실제 파일 저장 기본 경로
+private static final String DOWNLOAD_BASE_PATH = 
+    "C:/Users/LEEJUHWAN/Downloads/approval_plus_attachments";
+
+// DB에 저장될 경로 프리픽스
+private static final String DB_PATH_PREFIX = 
+    "/PMS_SITE-U7OI43JLDSMO/approval/approval_plus_attachments";
+```
+
+### D.4 입력 방식
+
+**방식 1: CSV 파일 사용 (`USE_CSV = true`)**
+
+CSV 파일 형식:
+```csv
+source_id,doc_num,title,created_at,attaches
+2002144,문서번호-001,제목1,1705290600000,"[{""name"":""파일1.xlsx"",""path"":""/old/path""}]"
+2002200,문서번호-002,제목2,1705290700000,"[]"
+```
+
+**방식 2: 수동 리스트 사용 (`USE_CSV = false`)**
+
+```java
+private static final List<String> MANUAL_SOURCE_IDS = Arrays.asList(
+    "2002144",
+    "2002200",
+    "2002203"
+);
+```
+
+### D.5 실행 방법
+
+1. `USE_CSV` 설정에 따라 CSV 경로 또는 수동 리스트 설정
+2. 파일 저장 경로 및 DB 경로 프리픽스 설정
+3. IntelliJ에서 `AnyFivePlusCrawler_attaches.java` 실행
+
+### D.6 로그 파일
+
+| 로그 파일 | 내용 |
+|-----------|------|
+| `crawler_completed.txt` | 처리 완료된 source_id 목록 |
+| `crawler_failed.txt` | 실패한 source_id 및 사유 |
+| `crawler_name_mismatch.txt` | CSV와 실제 파일명이 다른 경우 |
+| `crawler_count_warning.txt` | CSV와 실제 첨부파일 개수가 다른 경우 |
+
+### D.7 실행 과정
+
+```
+========================================
+1단계: source_id 목록 로드
+========================================
+  > CSV 파일에서 로드: C:/Users/.../empty_path_documents.csv
+  > 총 로드된 source_id: 150건
+
+========================================
+2단계: 완료된 항목 확인 (재시작 지원)
+========================================
+  > 이미 완료된 source_id: 50건
+  > 처리 대상 source_id: 100건
+
+========================================
+5단계: 첨부파일 크롤링 시작
+========================================
+
+------------------------------------------
+[1/100] source_id: 2002144 처리 중...
+------------------------------------------
+  > 크롤링된 첨부파일 수: 3
+    > 다운로드 성공: 계약서.pdf
+    > 다운로드 성공: 견적서.xlsx
+    > 다운로드 성공: 사진.jpg
+  > 다운로드 완료: 3/3
+  > DB 업데이트 완료
+
+========================================
+6단계: 크롤링 완료
+========================================
+  > 총 처리 대상: 100
+  > 성공: 98
+  > 실패: 2
+  > 다운로드된 파일 수: 287
+```
+
+### D.8 결과물
+
+**폴더 구조:**
+```
+C:/Users/LEEJUHWAN/Downloads/approval_plus_attachments/
+├── apr2002144/
+│   ├── 계약서.pdf
+│   ├── 견적서.xlsx
+│   └── 사진.jpg
+├── apr2002200/
+│   └── 보고서.docx
+└── ...
+```
+
+**DB attaches 컬럼 업데이트:**
+```json
+[
+  {"name":"계약서.pdf","path":"/PMS_SITE-U7OI43JLDSMO/approval/approval_plus_attachments/apr2002144/계약서.pdf"},
+  {"name":"견적서.xlsx","path":"/PMS_SITE-U7OI43JLDSMO/approval/approval_plus_attachments/apr2002144/견적서.xlsx"},
+  {"name":"사진.jpg","path":"/PMS_SITE-U7OI43JLDSMO/approval/approval_plus_attachments/apr2002144/사진.jpg"}
+]
+```
+
+---
+
 ### 깃허브 any_htmlver에서 ⭐⭐⭐누락된 문서 확인 & 대처⭐⭐⭐를 확인해주세요 
