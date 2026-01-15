@@ -1690,7 +1690,8 @@ private static final String[] TARGET_DOCUMENT_IDS = {
 반려된 문서의 경우:
 - `activities` 컬럼의 `type`, `actionLogType`에 한글 **"반려"**로 저장됨
 - 건수가 적으므로 **수동 처리** 실행함
-- !참고! 초기에는 반려를 RETURN 타입으로 변환했으나, 이후 APPROVAL 타입 + [반려] 코멘트 prefix 방식으로 정책이 변경되었습니다. 관련 변환 코드는 [any_approval_plus](https://github.com/000Lee/any_approval_plus.git)의 DB에 수정 반영하기/ 폴더에 있습니다. (verify_action_type.ipynb->RETURN 변환.ipynb)
+- !참고! 초기에는 반려를 RETURN 타입으로 변환했으나, 이후 APPROVAL 타입 + [반려] 코멘트 prefix 방식으로 정책이 변경되었습니다.
+- 관련 변환 코드들은 [any_approval_plus](https://github.com/000Lee/any_approval_plus#2-결재-데이터-변환)의 DB에 수정 반영하기/ 폴더에 있습니다.
 
 **반려 수동 처리 방법:**
 ```sql
