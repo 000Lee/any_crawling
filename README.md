@@ -1414,7 +1414,7 @@ documentIds.addAll(Arrays.asList(
 
 ### 14.1 설정 변경 사항
 
-#### 로그인 URL 변경
+#### URL 변경
 ```java
 // 기존
 private static final String BASE_URL = "http://office.anyfive.com";
@@ -1479,9 +1479,9 @@ private static final String BASE_URL = "https://auth.onnet21.com/?re=anyfive.onn
                                                       ▼
 [14단계] 🗄️ 스타일태그 검증 SQL ─────────────────> 문서당 1개인지 확인
 
-[15단계] 🐍 export_documents_v3.ipynb ───────────> 최종 내보내기
+[15단계] 🐍 export_documents_v3.ipynb ───────────> 최종 내보내기 
 
-[16단계] 🐍 comments_to_cmds 증분치.ipynb ───────> 코멘트 변환
+[16단계] 🐍 comments_to_cmds 증분치.ipynb ───────> 최종 내보내기 (댓글)
 ```
 
 ---
@@ -1491,6 +1491,7 @@ private static final String BASE_URL = "https://auth.onnet21.com/?re=anyfive.onn
 #### 📌 [1~2단계] 문서 ID 추출 및 누락 문서 찾기 (Python)
 
 > 파이썬 코드 상세 설명은 [any_approval_plus](https://github.com/000Lee/any_approval_plus.git) 참조
+> 재실행이 아닌 최초수집이라면 2단계는 건너뛰세요
 
 | 단계 | 파일명 | 설명 |
 |:---:|--------|------|
@@ -1507,6 +1508,36 @@ private static final String BASE_URL = "https://auth.onnet21.com/?re=anyfive.onn
 - DB에 문서 메타데이터 저장
 
 **사용 방법:**
+```sql
+CREATE TABLE 테이블이름 (
+    id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    source_id VARCHAR(50) NOT NULL COMMENT '원본 시스템 문서 ID',
+    doc_num VARCHAR(100) COMMENT '문서번호',
+    doc_type VARCHAR(50) DEFAULT 'DRAFT' COMMENT '문서유형',
+    title VARCHAR(500) COMMENT '제목',
+    doc_status VARCHAR(50) DEFAULT 'COMPLETE' COMMENT '문서상태',
+    created_at BIGINT(20) COMMENT '기안일 (Unix timestamp)',
+    drafter_name VARCHAR(100) COMMENT '기안자 이름',
+    drafter_position VARCHAR(100) COMMENT '기안자 직위',
+    drafter_dept VARCHAR(100) COMMENT '기안자 부서',
+    drafter_email VARCHAR(100) COMMENT '기안자 이메일(ID)',
+    drafter_dept_code VARCHAR(50) COMMENT '기안자 부서코드',
+    form_name VARCHAR(200) COMMENT '양식명',
+    is_public TINYINT(1) DEFAULT 0 COMMENT '문서공개 여부 (0:비공개, 1:공개)',
+    end_year INT(11) COMMENT '대상연도',
+    `references` TEXT COMMENT '참조문서 JSON',
+    attaches TEXT COMMENT '첨부파일 JSON',
+    referrers TEXT COMMENT '참조자 JSON',
+    activities TEXT COMMENT '결재활동 JSON',
+    doc_body MEDIUMTEXT COMMENT '문서본문 HTML',
+    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    year INT(11) COMMENT '연도',
+    
+    UNIQUE KEY uk_source_id (source_id),
+    INDEX idx_end_year (end_year),
+    INDEX idx_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
 ```java
 // 1. 2단계 결과(누락 문서 ID)를 TARGET_DOCUMENT_IDS에 입력
 private static final String[] TARGET_DOCUMENT_IDS = {
@@ -1526,7 +1557,7 @@ private static final String BASE_URL = "https://auth.onnet21.com/?re=anyfive.onn
 크롤링 완료 후 참조자 컬럼에 `이름(아이디)` 형식이 있는 경우 아래 SQL 실행:
 ```sql
 -- 참조자 컬럼에서 괄호와 내용 제거 (이름만 남김)
-UPDATE new_documents_2024
+UPDATE 테이블이름
 SET referrers = REGEXP_REPLACE(referrers, '\\([^)]+\\)', '')
 WHERE referrers LIKE '%(%';
 ```
@@ -1537,7 +1568,7 @@ WHERE referrers LIKE '%(%';
 
 **기능:**
 - DB에 저장된 문서들의 첨부파일 다운로드
-- attaches 컬럼에 파일 경로 JSON 업데이트
+- attaches 컬럼 업데이트
 
 **검증 방법:**
 
@@ -1547,7 +1578,7 @@ WHERE referrers LIKE '%(%';
 SELECT 
     COUNT(DISTINCT source_id) as doc_count,
     SUM(JSON_LENGTH(attaches)) as total_attaches
-FROM new_documents_2024
+FROM 테이블이름
 WHERE attaches IS NOT NULL AND attaches != '[]';
 ```
 
@@ -1565,14 +1596,20 @@ WHERE attaches IS NOT NULL AND attaches != '[]';
 
 **검증 방법:**
 ```sql
--- DB에 이미지가 있는 문서 개수 확인 (doc_body 내 img 태그 기준)
-SELECT COUNT(*) as img_doc_count
-FROM new_documents_2024
+-- [6단계] 문서 본문 크롤링 - AnyFiveNewCrawler_docBody.java 실행 후 검증하기
+-- DB에 이미지가 있는 문서 개수 및 총 이미지 태그 개수 확인
+SELECT 
+    COUNT(*) as img_doc_count,
+    SUM(
+        (LENGTH(doc_body) - LENGTH(REPLACE(LOWER(doc_body), '<img', ''))) / LENGTH('<img')
+    ) as total_img_count
+FROM 테이블이름
 WHERE doc_body LIKE '%<img%';
 ```
 
 실제 다운로드 폴더에서:
-- 폴더 개수 = 이미지가 있는 문서 수와 일치해야 함
+- 폴더 개수 = `img_doc_count`와 일치해야 함
+- 총 파일 개수 = `total_img_count`와 일치해야 함
 
 ---
 
@@ -1594,6 +1631,19 @@ WHERE doc_body LIKE '%<img%';
 - 재시작 지원 (`processed_ids.txt`)
 
 **사용 방법:**
+```sql
+CREATE TABLE 테이블이름 (
+    id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    source_id VARCHAR(50) COMMENT '댓글 고유 ID',
+    source_document_id VARCHAR(20) NOT NULL COMMENT '원본 문서 ID',
+    created_at BIGINT(20) COMMENT '작성일시 (Unix timestamp)',
+    updated_at BIGINT(20) COMMENT '수정일시 (Unix timestamp)',
+    writer VARCHAR(50) COMMENT '작성자',
+    message TEXT COMMENT '댓글 내용',
+    
+    INDEX idx_source_document_id (source_document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
 ```java
 // 2단계 결과를 TARGET_DOCUMENT_IDS에 입력
 private static final String[] TARGET_DOCUMENT_IDS = {
@@ -1604,13 +1654,27 @@ private static final String[] TARGET_DOCUMENT_IDS = {
 
 ---
 
-#### 📌 [8단계] 결재이력 크롤링 - AnyFiveActiviesCrawler_plus.java
+#### 📌 [8단계] 결재테이블 크롤링 - AnyFiveActiviesCrawler_plus.java
 
 **기능:**
 - 결재 라인 정보 (순서, 상태, 결재일시, 결재자) 크롤링
-- activities 컬럼에 JSON 형태로 저장
+- 별도의 테이블에 참고용으로 저장 
 
 **사용 방법:**
+```sql
+CREATE TABLE 테이블이름 (
+    record_id INT(11) AUTO_INCREMENT PRIMARY KEY,
+    document_id VARCHAR(255) NOT NULL COMMENT '문서 ID',
+    post_title VARCHAR(512) COMMENT '문서 제목',
+    sequence INT(11) COMMENT '결재 순서',
+    status VARCHAR(50) COMMENT '결재 상태',
+    approval_date VARCHAR(50) COMMENT '결재 일시',
+    department VARCHAR(100) COMMENT '결재자 부서',
+    approver VARCHAR(100) COMMENT '결재자',
+    
+    INDEX idx_document_id (document_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+```
 ```java
 // 2단계 결과를 TARGET_DOCUMENT_IDS에 입력
 private static final String[] TARGET_DOCUMENT_IDS = {
@@ -1624,16 +1688,33 @@ private static final String[] TARGET_DOCUMENT_IDS = {
 
 반려된 문서의 경우:
 - `activities` 컬럼의 `type`, `actionLogType`에 한글 **"반려"**로 저장됨
-- 건수가 적으므로 **수동 처리** 필요
+- 건수가 적으므로 **수동 처리** 실행함
+- !참고! 초기에는 반려를 RETURN 타입으로 변환했으나, 이후 APPROVAL 타입 + [반려] 코멘트 prefix 방식으로 정책이 변경되었습니다. 관련 변환 코드는 [any_approval_plus](https://github.com/000Lee/any_approval_plus.git)의 DB에 수정 반영하기/ 폴더에 있습니다. (verify_action_type.ipynb->RETURN 변환.ipynb)
 
 **반려 수동 처리 방법:**
 ```sql
--- 1. 반려 문서 확인
-SELECT source_id, activities 
-FROM new_documents_2024
-WHERE activities LIKE '%반려%';
+-- (결재테이블에서) 반려가 있는지 확인
+SELECT *
+FROM 테이블이름
+WHERE status = '반려';
 
--- 2. 수동으로 수정
+-- (결재테이블에서) 반려 건수만 확인
+SELECT COUNT(*) as reject_count
+FROM 테이블이름
+WHERE status = '반려';
+
+-- (결재테이블에서) 반려가 있는 문서 ID 목록 확인
+SELECT DISTINCT document_id, post_title
+FROM 테이블이름
+WHERE status = '반려';
+
+-- 1. (AnyFiveNewCrawler9670.java 결과 테이블에서) 반려 문서 확인 
+SELECT source_id, activities
+FROM 테이블이름
+WHERE activities LIKE '%"actionLogType": "반려"%'
+   OR activities LIKE '%"type": "반려"%';
+
+-- 2. (AnyFiveNewCrawler9670.java 결과 테이블에서) 수동으로 수정
 -- type: "반려" → "APPROVAL"
 -- actionLogType: "반려" → "APPROVAL"  
 -- actionComment 맨 앞에 "[반려] " 추가
@@ -1662,7 +1743,7 @@ WHERE activities LIKE '%반려%';
 SELECT
     (LENGTH(doc_body) - LENGTH(REPLACE(LOWER(doc_body), '<style', ''))) / LENGTH('<style') AS style_tag_count,
     COUNT(*) AS doc_count
-FROM new_documents_2024
+FROM 테이블이름
 WHERE doc_body IS NOT NULL
 GROUP BY style_tag_count
 ORDER BY style_tag_count DESC;
@@ -1683,8 +1764,8 @@ ORDER BY style_tag_count DESC;
 
 | 단계 | 파일명 | 설명 |
 |:---:|--------|------|
-| 15 | `export_documents_v3.ipynb` | 최종 문서 내보내기 |
-| 16 | `comments_to_cmds 증분치.ipynb` | 코멘트를 cmds 형식으로 변환 |
+| 15 | `export_documents_v3.ipynb` | cmds 형식으로 변환 |
+| 16 | `comments_to_cmds 증분치.ipynb` | cmds 형식으로 변환 (댓글) |
 
 ---
 
