@@ -2,13 +2,13 @@
 
 > 이 문서는 office.anyfive.com 전자결재 시스템에서 데이터를 추출하여 새로운 시스템으로 마이그레이션하기 위한 cmds를 만드는 전체 과정입니다.
 > 파일 이름에 AnyFiveOOJnlOOCrawler_OO 형식으로 되어있는것은 업무관리 데이터 크롤러로 이에 관련된 설명은 모두 [any_jnl_crawling](https://github.com/000Lee/any_jnl_crawling.git)에 있습니다.
---
-## 결재선 크롤링
-- 설명과 자바코드는 현재 📋 애니파이브 전자결재 크롤링 가이드
-
-> 이 문서는 office.anyfive.com 전자결재 시스템에서 데이터를 추출하여 새로운 시스템으로 마이그레이션하기 위한 cmds를 만드는 전체 과정입니다.
-> 파일 이름에 AnyFiveOOJnlOOCrawler_OO 형식으로 되어있는것은 업무관리 데이터 크롤러로 이에 관련된 설명은 모두 [any_jnl_crawling](https://github.com/000Lee/any_jnl_crawling.git)에 있습니다.
 > AnyFiveBoardPlusCrawler_attaches.java, AnyFiveBoardPlusCrawler_img.java는 게시판 크롤러로 이에 관련된 설명은 모두 [any_board](https://github.com/000Lee/any_board.git)에 있습니다.
+>
+> **안내**  
+> 이 레포지토리는 여러 차례 개선을 거쳐 현재 버전에 이르렀습니다.  
+> 최신 작업 시에는 [⭐전자결재 최신 버전⭐](#14-전자결재-최신-버전) 섹션만 참고하시면 됩니다.  
+> 해당 섹션에 포함되지 않은 코드는 이전 버전이거나 현재 사용하지 않는 파일이며, 기존 설명은 참고용으로 남겨두었습니다.
+
 --
 ## 결재선 크롤링
 - 설명과 자바코드는 현재 페이지을 참고
